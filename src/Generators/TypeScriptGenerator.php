@@ -132,8 +132,8 @@ class TypeScriptGenerator
      */
     public function getSafeKey(string $key): string
     {
-        // Replace hyphens, dots, spaces, and slashes with underscores for valid TypeScript identifiers
-        $safeKey = str_replace(['-', '.', ' ', '/', '\\'], '_', $key);
+        // Replace any non-alphanumeric characters (except underscores) with underscores
+        $safeKey = preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
         
         // Check if key starts with a number or still needs quotes
         $needsQuotes = (isset($safeKey[0]) && is_numeric($safeKey[0]));

@@ -117,7 +117,7 @@ class ModuleWriter extends BaseWriter
                 }
             } else {
                 $interfaceName = $fileInterfaces[$file];
-                $propertyName = str_replace('.', '_', $file);
+                $propertyName = preg_replace('/[^a-zA-Z0-9_]/', '_', $file);
                 $ts .= "  {$propertyName}: {$interfaceName};\n";
             }
         }

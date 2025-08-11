@@ -51,7 +51,7 @@ class GranularWriter extends BaseWriter
                     $property = 'json';
                 } else {
                     $fileName = Str::kebab($file) . '.translations.d.ts';
-                    $property = $file;
+                    $property = preg_replace('/[^a-zA-Z0-9_]/', '_', $file);
                 }
 
                 $filePath = $moduleDir . '/' . $fileName;
