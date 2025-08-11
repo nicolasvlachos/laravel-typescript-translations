@@ -1,0 +1,9 @@
+// Shared types for translations
+
+{{ localeType }}
+
+// Helper type for translation functions
+export type TranslationFunction = (key: string, params?: Record<string, any>) => string;
+
+// Helper type for pluralization
+export type PluralTranslation = string | { [count: number]: string; other: string };
