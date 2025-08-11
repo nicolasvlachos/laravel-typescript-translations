@@ -132,12 +132,13 @@ class TypeScriptGenerator
      */
     public function getSafeKey(string $key): string
     {
-        $needsQuotes = strpos($key, '-') !== false 
-            || strpos($key, ' ') !== false 
-            || strpos($key, '.') !== false 
-            || (isset($key[0]) && is_numeric($key[0]));
+        // Replace hyphens, dots, spaces, and slashes with underscores for valid TypeScript identifiers
+        $safeKey = str_replace(['-', '.', ' ', '/', '\\'], '_', $key);
+        
+        // Check if key starts with a number or still needs quotes
+        $needsQuotes = (isset($safeKey[0]) && is_numeric($safeKey[0]));
             
-        return $needsQuotes ? "'{$key}'" : $key;
+        return $needsQuotes ? "'{$safeKey}'" : $safeKey;
     }
 
     /**
