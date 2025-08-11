@@ -22,7 +22,7 @@ Generate TypeScript type definitions from Laravel translation files for type-saf
 Install via Composer:
 
 ```bash
-composer require nicolasvlachos/laravel-typescript-translations --dev
+composer require nvl/laravel-typescript-translations --dev
 ```
 
 ## Quick Start
@@ -254,41 +254,6 @@ php artisan vendor:publish --tag=typescript-translations-config
 php artisan vendor:publish --tag=typescript-translations-stubs
 ```
 
-## Architecture
-
-The package follows a modular architecture:
-
-| Component | Description |
-|-----------|-------------|
-| **Discovery** | `PathsCollector` finds translation directories with wildcard support |
-| **Scanning** | Pluggable scanners for different file types (PHP, JSON) |
-| **Generation** | `TypeScriptGenerator` creates TypeScript code |
-| **Writing** | Multiple writer strategies for different output modes |
-| **Configuration** | Type-safe configuration with value objects and enums |
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Testing
-
-```bash
-composer test
-```
-
-## Changelog
-
-Please see [CHANGELOG](CHANGELOG.md) for recent changes.
-
-## Security
-
-If you discover any security related issues, please email vlachos.ni@gmail.com instead of using the issue tracker.
 
 ## Credits
 
