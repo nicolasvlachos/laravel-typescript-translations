@@ -167,7 +167,7 @@ class GranularWriter extends BaseWriter
         $ts .= "export interface {$suffix} {\n";
 
         foreach ($allInterfaces as $sourceName => $interfaces) {
-            $propertyName = Str::camel($sourceName);
+            $propertyName = $this->toPropertyName($sourceName);
             $ts .= "  {$propertyName}: {$sourceName}{$suffix};\n";
         }
 

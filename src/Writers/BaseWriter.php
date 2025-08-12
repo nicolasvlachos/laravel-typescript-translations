@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use NVL\LaravelTypescriptTranslations\Config\TranslationConfig;
 use NVL\LaravelTypescriptTranslations\Generators\TypeScriptGenerator;
 use NVL\LaravelTypescriptTranslations\Stubs\StubManager;
+use NVL\LaravelTypescriptTranslations\Services\NamingService;
 
 /**
  * Base class for TypeScript writers.
@@ -37,6 +38,13 @@ abstract class BaseWriter implements WriterInterface
     protected StubManager $stubManager;
 
     /**
+     * Naming service instance.
+     *
+     * @var NamingService
+     */
+    protected NamingService $namingService;
+
+    /**
      * Create a new writer instance.
      *
      * @param TranslationConfig $config
@@ -46,6 +54,7 @@ abstract class BaseWriter implements WriterInterface
     ) {
         $this->generator = new TypeScriptGenerator($config);
         $this->stubManager = new StubManager($config);
+        $this->namingService = new NamingService();
     }
 
     /**
@@ -119,18 +128,19 @@ abstract class BaseWriter implements WriterInterface
 
     /**
      * Generate a filename-safe version of a name.
+     * Delegates to the naming service for consistency.
      *
      * @param string $name
      * @return string
      */
     protected function toFilenameSafe(string $name): string
     {
-        // Convert to lowercase first, then kebab case
-        return Str::kebab(strtolower($name));
+        return $this->namingService->toFilenameSafe($name);
     }
 
     /**
      * Build interface name.
+     * Delegates to the naming service for consistency.
      *
      * @param string $sourceName
      * @param string $file
@@ -143,36 +153,25 @@ abstract class BaseWriter implements WriterInterface
 
         if ($isJson) {
             if ($file === '_json') {
-                return $sourceName . 'Json' . $suffix;
+                return Str::studly($sourceName) . $suffix;
             }
-            
-            $pathParts = explode('.', $file);
-            array_shift($pathParts); // Remove '_json'
-            
-            $interfaceName = $sourceName;
-            foreach ($pathParts as $part) {
-                $interfaceName .= Str::studly($part);
-            }
-            return $interfaceName . 'Json' . $suffix;
+            // Handle nested JSON files
+            return $this->namingService->buildModuleName($sourceName, str_replace('_json.', '', $file)) . $suffix;
         }
 
-        $pathParts = explode('.', $file);
-        $interfaceName = $sourceName;
-        
-        $sourceNameLower = strtolower($sourceName);
-        $processedParts = [];
-        
-        foreach ($pathParts as $part) {
-            if (strtolower($part) === $sourceNameLower && empty($processedParts)) {
-                continue;
-            }
-            $processedParts[] = Str::studly($part);
-        }
-        
-        foreach ($processedParts as $part) {
-            $interfaceName .= $part;
-        }
-        
-        return $interfaceName . $suffix;
+        // Use naming service for consistent naming
+        return $this->namingService->buildModuleName($sourceName, $file) . $suffix;
+    }
+
+    /**
+     * Convert a source name to property name format.
+     * Delegates to the naming service for consistency.
+     *
+     * @param string $sourceName
+     * @return string
+     */
+    protected function toPropertyName(string $sourceName): string
+    {
+        return $this->namingService->toPropertyName($sourceName);
     }
 }

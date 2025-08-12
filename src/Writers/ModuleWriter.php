@@ -181,7 +181,7 @@ class ModuleWriter extends BaseWriter
             if (empty($structure)) {
                 continue;
             }
-            $propertyName = Str::camel($sourceName);
+            $propertyName = $this->toPropertyName($sourceName);
             $interfaceName = $sourceName . $suffix;
             $ts .= "  {$propertyName}: {$interfaceName};\n";
         }

@@ -50,7 +50,7 @@ class SingleFileWriter extends BaseWriter
                 continue;
             }
 
-            $interfaceName = $sourceName . $suffix;
+            $interfaceName = Str::studly($sourceName) . $suffix;
             $ts .= "export interface {$interfaceName} {\n";
 
             foreach ($structure as $file => $translations) {
@@ -84,8 +84,8 @@ class SingleFileWriter extends BaseWriter
             if (empty($structure)) {
                 continue;
             }
-            $interfaceName = $sourceName . $suffix;
-            $propertyName = Str::camel($sourceName);
+            $interfaceName = Str::studly($sourceName) . $suffix;
+            $propertyName = $this->toPropertyName($sourceName);
             $ts .= "  {$propertyName}: {$interfaceName};\n";
         }
         $ts .= "}\n\n";
@@ -127,7 +127,7 @@ class SingleFileWriter extends BaseWriter
                 if (empty($structure)) {
                     continue;
                 }
-                $propertyName = Str::camel($sourceName);
+                $propertyName = $this->toPropertyName($sourceName);
                 $keys = $this->generator->generateKeys($structure);
                 foreach ($keys as $key) {
                     $allKeys[] = "'{$propertyName}.{$key}'";

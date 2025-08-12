@@ -176,6 +176,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Translation Export Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure how and where translation data is exported.
+    |
+    */
+    'translation_export' => [
+        'path' => 'resources/js/data/translations',
+        'mode' => 'module', // 'single', 'module', 'granular' - matches type generation mode
+        'organize_by' => 'locale-mapped', // 'locale', 'module', 'locale-mapped' - primary organization structure
+        'format' => 'typescript', // 'typescript', 'json', 'both'
+        'filename_pattern' => '{locale}.ts', // Pattern for filenames: {locale}, {module}, {file}
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Translation Object Naming
     |--------------------------------------------------------------------------
     |

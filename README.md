@@ -3,11 +3,37 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/nvl/laravel-typescript-translations.svg?style=flat-square)](https://packagist.org/packages/nvl/laravel-typescript-translations)
 [![Total Downloads](https://img.shields.io/packagist/dt/nvl/laravel-typescript-translations.svg?style=flat-square)](https://packagist.org/packages/nvl/laravel-typescript-translations)
 
-Generate TypeScript types from your Laravel translation files.
+Generate TypeScript types and translation data from Laravel translation files. **Load only what you need, when you need it.**
 
-## What it does
+## Table of Contents
 
-This package scans your Laravel translation files and generates corresponding TypeScript type definitions. Instead of one giant type file, it creates composable, modular types that mirror your translation structure. This means you can import only what you need, mix translations from different modules, and keep your types organized.
+- [The Problem This Solves](#the-problem-this-solves)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Understanding the Two Approaches](#understanding-the-two-approaches)
+- [Mode Comparison](#mode-comparison)
+- [Type Generation](#type-generation)
+- [Translation Export](#translation-export)
+- [Hook Usage](#hook-usage)
+  - [use-inertia-translations (Backend)](#use-inertia-translations-backend)
+  - [use-local-translations (Frontend)](#use-local-translations-frontend)
+- [Laravel Integration](#laravel-integration)
+- [Configuration Options](#configuration-options)
+- [Performance](#performance)
+- [License](#license)
+
+## The Problem This Solves
+
+In Laravel + TypeScript apps, you typically have:
+1. **Massive translation bundles** - Loading all translations for all languages on every page
+2. **No type safety** - Typos in translation keys only discovered at runtime
+3. **Poor performance** - Sending unused translations over the wire
+
+This package solves all three by:
+- Generating TypeScript types from your Laravel translations
+- Exporting translation data in a modular, tree-shakeable format
+- Providing hooks for both backend-driven and frontend-driven translations
+- Enabling fine-grained control over what translations load where
 
 ## Installation
 
@@ -15,311 +41,510 @@ This package scans your Laravel translation files and generates corresponding Ty
 composer require nvl/laravel-typescript-translations --dev
 ```
 
-## Basic Usage
+Publish the configuration:
 
 ```bash
-php artisan translations:generate
+php artisan vendor:publish --tag=typescript-translations-config
 ```
 
-That's it. Your TypeScript types are now generated in `resources/js/types/translations.d.ts`.
+## Quick Start
 
-## Why composable types matter
+```bash
+# 1. Generate TypeScript types for backend translations
+php artisan translations:generate --mode=module
 
-Instead of getting one massive type with everything, you get this:
+# 2. Export translation data for frontend usage
+php artisan translations:export --mode=module --organize-by=locale-mapped
+```
 
+## Understanding the Two Approaches
+
+This package supports two distinct approaches for handling translations:
+
+### 1. Backend-Driven (use-inertia-translations)
+- Server sends specific translations for current page
+- Only current locale
+- Smaller payload
+- No client-side locale switching
+- Type-safe with generated interfaces
+
+### 2. Frontend-Driven (use-local-translations)
+- Client loads translation modules
+- All locales available
+- Larger initial payload
+- Dynamic locale switching
+- Tree-shakeable modules
+
+## Mode Comparison
+
+### Type Generation Modes
+
+| Mode | Output Structure | File Count | Use Case |
+|------|-----------------|------------|----------|
+| **Single** | `translations.d.ts` | 1 file | Small projects (< 10 translation files) |
+| **Module** | `vendors.types.d.ts`, `tasks.types.d.ts` | 1 per source | **Recommended** - Balanced approach |
+| **Granular** | `vendors/actions.types.d.ts`, `vendors/forms.types.d.ts` | 1 per file | Large projects needing maximum control |
+
+#### Single Mode Structure
 ```typescript
-// Each module has its own types
-export interface VendorsActionsI18N {
-    create: string;
-    edit: string;
-    delete: string;
-}
-
-export interface VendorsFormsI18N {
-    name: string;
-    email: string;
-    phone: string;
-}
-
-// Compose them as needed
-export interface VendorsI18N {
+// resources/js/types/translations.d.ts
+export interface I18N {
+  vendors: {
     actions: VendorsActionsI18N;
     forms: VendorsFormsI18N;
+  };
+  tasks: {
+    actions: TasksActionsI18N;
+    filters: TasksFiltersI18N;
+  };
 }
 ```
 
-Now you can use exactly what you need:
-
+#### Module Mode Structure
 ```typescript
-// Just need vendor actions? Import only that
-import type { VendorsActionsI18N } from '@/types/translations';
-
-// Need to compose your own type for a specific page?
-type VendorEditPage = {
-    vendors: {
-        actions: Pick<VendorsActionsI18N, 'save' | 'cancel'>;
-        forms: VendorsFormsI18N;
-    };
-    common: CommonI18N;
+// resources/js/types/translations/vendors.types.d.ts
+export interface VendorsActionsI18N { create: string; edit: string; }
+export interface VendorsFormsI18N { title: string; fields: {...} }
+export interface VendorsI18N { 
+  actions: VendorsActionsI18N;
+  forms: VendorsFormsI18N;
 }
 ```
 
-## Configuration
-
-Publish the config:
-
-```bash
-php artisan vendor:publish --tag="typescript-translations-config"
-```
-
-```php
-return [
-    // Where to look for translation files
-    'paths' => [
-        'lang',
-        'resources/lang',
-        'Modules/*/Resources/lang',  // Scan module translations
-        'packages/*/lang',            // Scan package translations
-    ],
-    
-    // Where to put generated types
-    'output' => [
-        'path' => 'resources/js/types',
-        'filename' => 'translations.d.ts',
-    ],
-    
-    // How to generate types
-    'mode' => 'module',    // 'single', 'module', or 'granular'
-    'format' => 'nested',  // 'nested' or 'flat'
-];
-```
-
-## Generation Modes
-
-### Module Mode (Recommended)
-Creates a separate file for each translation source. Best for projects with multiple modules.
-
-```
-resources/js/types/
-├── translations.d.ts
-└── translations/
-    ├── vendors.translations.d.ts
-    ├── products.translations.d.ts
-    └── system.translations.d.ts
-```
-
-### Single Mode
-Everything in one file. Good for small projects.
-
-### Granular Mode
-One file per translation file. Maximum flexibility.
-
+#### Granular Mode Structure
 ```
 resources/js/types/translations/
 ├── vendors/
-│   ├── actions.translations.d.ts
-│   ├── forms.translations.d.ts
-│   └── tables.translations.d.ts
-└── products/
-    ├── catalog.translations.d.ts
-    └── inventory.translations.d.ts
+│   ├── actions.types.d.ts    // Just VendorsActionsI18N
+│   ├── forms.types.d.ts      // Just VendorsFormsI18N
+│   └── index.d.ts
+└── tasks/
+    ├── actions.types.d.ts
+    └── filters.types.d.ts
 ```
 
-## Using with Inertia
+### Translation Export Modes
 
-Works great with Laravel Inertia. Share common translations in your middleware, then add page-specific ones in your controllers:
+| Mode | Output Structure | Bundle Impact | Use Case |
+|------|-----------------|---------------|----------|
+| **Single** | `translations.ts` | No tree-shaking | Small projects |
+| **Module** | `vendors.translations.ts` with multiple exports | Good tree-shaking | **Recommended** |
+| **Granular** | `vendors/actions.ts`, `vendors/forms.ts` | Best tree-shaking | Large projects |
+
+#### Module Mode Exports
+```typescript
+// resources/js/data/translations/vendors.translations.ts
+export const VendorsActionsTranslations = {
+  en: { create: 'Create', edit: 'Edit' },
+  bg: { create: 'Създай', edit: 'Редактирай' }
+} as const;
+
+export const VendorsFormsTranslations = {
+  en: { title: 'Vendor Form' },
+  bg: { title: 'Форма за доставчик' }
+} as const;
+```
+
+## Type Generation
+
+Generate TypeScript types from your Laravel translations:
+
+```bash
+php artisan translations:generate [options]
+```
+
+### Options
+
+| Option | Values | Description |
+|--------|--------|-------------|
+| `--mode` | single, module, granular | Output structure |
+| `--locale` | en,bg,de | Specific locales to scan |
+| `--fresh` | - | Clear cache before generation |
+| `--debug` | - | Show detailed output |
+
+## Translation Export
+
+Export actual translation data for frontend usage:
+
+```bash
+php artisan translations:export [options]
+```
+
+### Options
+
+| Option | Values | Description |
+|--------|--------|-------------|
+| `--mode` | single, module, granular | File structure |
+| `--organize-by` | locale-mapped, locale, module | How to organize locales |
+| `--locale` | en,bg,de | Specific locales only |
+| `--format` | typescript, json | Output format |
+| `--output` | path/to/dir | Custom output directory |
+
+## Hook Usage
+
+### use-inertia-translations (Backend)
+
+For server-driven translations passed via Inertia props:
+
+```typescript
+import { useInertiaTranslations } from '@/hooks/use-inertia-translations';
+import type { VendorsI18N } from '@/types/translations';
+
+interface PageProps {
+  vendor: Vendor;
+  // Type-safe translation structure from backend
+  translations: {
+    vendors: Pick<VendorsI18N, 'forms' | 'validation'>;
+    common: { save: string; cancel: string; };
+  };
+}
+
+function VendorEdit({ vendor }: PageProps) {
+  // Hook automatically reads from Inertia page props
+  const { t, locale } = useInertiaTranslations<PageProps['translations']>();
+  
+  return (
+    <form>
+      <h1>{t('vendors.forms.title')}</h1>
+      <button>{t('common.save')}</button>
+      
+      {/* TypeScript error if key doesn't exist */}
+      <span>{t('vendors.list.title')}</span> {/* ❌ Error: 'list' not in type */}
+    </form>
+  );
+}
+```
+
+**Pros:**
+- Minimal payload (only current locale, only needed keys)
+- Type-safe with backend contract
+- No unused translations sent
+
+**Cons:**
+- No client-side locale switching
+- Requires backend changes for new translations
+
+### use-local-translations (Frontend)
+
+For client-side translations with locale switching:
+
+```typescript
+import { useLocalTranslations } from '@/hooks/use-local-translations';
+import { VendorsFormsTranslations, VendorsActionsTranslations } from '@/data/translations/vendors.translations';
+
+function VendorForm() {
+  // Load translation modules with all locales
+  const { t, locale, setLocale, availableLocales } = useLocalTranslations({
+    forms: VendorsFormsTranslations,
+    actions: VendorsActionsTranslations
+  });
+  
+  return (
+    <div>
+      {/* Dynamic locale switching */}
+      <select value={locale} onChange={(e) => setLocale(e.target.value)}>
+        {availableLocales.map(loc => (
+          <option key={loc} value={loc}>{loc.toUpperCase()}</option>
+        ))}
+      </select>
+      
+      <h1>{t('forms.title')}</h1>
+      <button>{t('actions.save')}</button>
+    </div>
+  );
+}
+```
+
+**Pros:**
+- Client-side locale switching
+- No backend changes needed
+- Tree-shakeable (import only needed modules)
+
+**Cons:**
+- Larger bundle (all locales)
+- All translations exposed to client
+
+### Combining Both Approaches
+
+Use backend translations for initial render, client translations for dynamic features:
+
+```typescript
+import { useInertiaTranslations } from '@/hooks/use-inertia-translations';
+import { useLocalTranslations } from '@/hooks/use-local-translations';
+import { CommonTranslations } from '@/data/translations/common.translations';
+
+function HybridComponent() {
+  // Server translations for page-specific content
+  const { t: serverT } = useInertiaTranslations();
+  
+  // Client translations for dynamic UI elements
+  const { t: clientT, setLocale } = useLocalTranslations({
+    common: CommonTranslations
+  });
+  
+  return (
+    <>
+      {/* Server-driven content */}
+      <h1>{serverT('vendors.forms.title')}</h1>
+      
+      {/* Client-driven UI */}
+      <LanguageSwitcher onChange={setLocale} />
+      <Toast message={clientT('common.saved')} />
+    </>
+  );
+}
+```
+
+## Laravel Integration
+
+### Middleware (Global Translations)
+
+Only share truly global translations:
 
 ```php
 // app/Http/Middleware/HandleInertiaRequests.php
 public function share(Request $request): array
 {
     return array_merge(parent::share($request), [
-        // Share only common translations globally
+        'locale' => app()->getLocale(),
+        // ONLY navigation and layout translations
         'translations' => [
-            'common' => trans('common'),
             'navigation' => trans('navigation'),
-        ],
+            'common' => [
+                'logout' => trans('common.logout'),
+                'profile' => trans('common.profile'),
+            ]
+        ]
     ]);
 }
 ```
 
+### Controllers (Page-Specific)
+
+Send only what the page needs:
+
 ```php
-// In your controller - add page-specific translations
-return Inertia::render('Vendors/Show', [
-    'vendor' => $vendor,
-    'translations' => [
-        'vendors' => trans('vendors::vendors'),
-        'products' => [
-            'filters' => trans('products::filters')
+// VendorController.php
+public function index()
+{
+    return Inertia::render('Vendors/Index', [
+        'vendors' => Vendor::paginate(),
+        'translations' => [
+            'vendors' => [
+                'list' => trans('vendors.list'),
+                'filters' => trans('vendors.filters'),
+                'actions' => [
+                    'create' => trans('vendors.actions.create'),
+                    'export' => trans('vendors.actions.export'),
+                ]
+            ]
         ]
-    ]
-]);
-```
+    ]);
+}
 
-Then use them with full type safety:
-
-```vue
-<script setup lang="ts">
-import type { CommonI18N, VendorsI18N, ProductsFiltersI18N } from '@/types/translations';
-import { usePage } from '@inertiajs/vue3';
-
-// Global translations from middleware
-const { common, navigation } = usePage().props.translations;
-
-// Page-specific translations from controller
-const props = defineProps<{
-    vendor: Vendor;
-    translations: {
-        vendors: VendorsI18N;
-        products: {
-            filters: ProductsFiltersI18N;
-        };
-    };
-}>();
-
-// Use both global and page-specific translations
-const saveLabel = common.save;
-const vendorName = props.translations.vendors.name;
-const filterLabel = props.translations.products.filters.category;
-</script>
-```
-
-## Using with use-inertia-translations
-
-If you're using the [use-inertia-translations](https://github.com/your-username/use-inertia-translations) package:
-
-```typescript
-import { useInertiaTranslations } from 'use-inertia-translations';
-import type { I18N, TranslationKey } from '@/types/translations';
-
-const { t } = useInertiaTranslations<I18N>();
-
-// Full type safety for translation keys
-const label = t('vendors.actions.create');
-```
-
-## Commands
-
-### Generate Types
-```bash
-php artisan translations:generate
-
-# Options
---mode=module       # Generation mode
---format=nested     # Output format
---locale=en,es      # Specific locales
---scan-vendor       # Include vendor translations
-```
-
-### Export Translation Keys
-```bash
-php artisan translations:export-keys
-
-# Generates a union type of all translation keys
-export type TranslationKey = 
-    | 'vendors.actions.create'
-    | 'vendors.actions.edit'
-    | 'products.catalog.title'
-    // ...
-```
-
-### Export Translation Values
-```bash
-php artisan translations:export
-
-# Exports actual translation values as JS/TS
-export const translations = {
-    vendors: {
-        actions: {
-            create: 'Create Vendor',
-            edit: 'Edit Vendor',
-        }
-    }
+public function edit(Vendor $vendor)
+{
+    return Inertia::render('Vendors/Edit', [
+        'vendor' => $vendor,
+        'translations' => [
+            'vendors' => [
+                'forms' => trans('vendors.forms'),
+                'validation' => trans('vendors.validation'),
+            ]
+        ]
+    ]);
 }
 ```
 
-### Scan & Validate
-```bash
-# See what translations you have
-php artisan translations:scan
+## Configuration Options
 
-# Check for missing keys across locales
-php artisan translations:validate
+### Complete Configuration Reference
 
-# Get detailed stats
-php artisan translations:analytics
+```php
+<?php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Translation Paths
+    |--------------------------------------------------------------------------
+    | Paths to scan for translation files. Use :locale placeholder.
+    */
+    'paths' => [
+        'lang/:locale',
+        'resources/lang/:locale',
+        'Modules/*/Resources/lang/:locale',  // For modular apps
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Base Language
+    |--------------------------------------------------------------------------
+    | The primary language to use for type generation.
+    */
+    'base_language' => env('TRANSLATION_BASE_LANGUAGE', 'en'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Additional Locales
+    |--------------------------------------------------------------------------
+    | Other locales to scan when exporting translations.
+    */
+    'locales' => ['en', 'bg', 'de', 'fr'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Type Generation Output
+    |--------------------------------------------------------------------------
+    | Configure how TypeScript types are generated.
+    */
+    'output' => [
+        'path' => 'resources/js/types',
+        'mode' => env('TRANSLATION_TYPES_MODE', 'module'),
+        'file_name' => 'translations.d.ts',  // For single mode
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Translation Sources
+    |--------------------------------------------------------------------------
+    | Define specific sources to generate types for.
+    | Leave empty to scan all paths.
+    */
+    'sources' => [
+        'vendors' => [
+            'path' => 'lang/en/vendors',
+            'nested' => true,  // Scan subdirectories
+            'ignore' => ['temp.php', 'old/*'],
+        ],
+        'tasks' => [
+            'path' => 'lang/en/tasks',
+            'nested' => true,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Type Generation Settings
+    |--------------------------------------------------------------------------
+    */
+    'type_suffix' => 'I18N',              // Interface suffix
+    'export_keys' => true,                // Generate key union types
+    'strict_mode' => true,                // Use strict TypeScript
+    'preserve_array_keys' => false,       // Keep numeric array keys
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Translation Export Settings
+    |--------------------------------------------------------------------------
+    | Configure how translation data is exported.
+    */
+    'translation_export' => [
+        'path' => 'resources/js/data/translations',
+        'mode' => 'module',                    // single, module, granular
+        'organize_by' => 'locale-mapped',      // locale-mapped, locale, module
+        'format' => 'typescript',              // typescript, json
+        'filename_pattern' => '{source}.translations.{ext}',
+        'include_empty' => false,              // Include empty translations
+        'minify' => env('APP_ENV') === 'production',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Files to Ignore
+    |--------------------------------------------------------------------------
+    | Translation files to skip during scanning.
+    */
+    'ignore' => [
+        'validation.php',      // Laravel validation
+        'pagination.php',      // Laravel pagination  
+        'passwords.php',       // Laravel passwords
+        'auth.php',           // Laravel auth (optional)
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache Configuration
+    |--------------------------------------------------------------------------
+    | Speed up generation with caching.
+    */
+    'cache' => [
+        'enabled' => env('TRANSLATION_CACHE_ENABLED', true),
+        'path' => storage_path('app/translations-cache'),
+        'ttl' => 3600,  // 1 hour
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Advanced Options
+    |--------------------------------------------------------------------------
+    */
+    'advanced' => [
+        'use_short_keys' => false,           // Use short key names
+        'group_by_feature' => false,         // Group by feature modules
+        'generate_enum_types' => false,      // Generate enum types for fixed values
+        'auto_discover_packages' => true,    // Scan vendor packages
+    ],
+];
 ```
 
-## Real-world Example
+### Environment Variables
 
-Say you have this structure:
+Control behavior via `.env`:
 
+```env
+# Mode Configuration
+TRANSLATION_TYPES_MODE=module
+TRANSLATION_EXPORT_MODE=granular
+TRANSLATION_BASE_LANGUAGE=en
+
+# Performance
+TRANSLATION_CACHE_ENABLED=true
+
+# Debugging
+TRANSLATION_DEBUG=false
 ```
-lang/en/
-├── vendors/
-│   ├── actions.php
-│   ├── forms.php
-│   └── tables.php
-├── products/
-│   ├── catalog.php
-│   └── inventory.php
-└── common.php
+
+### Per-Environment Configuration
+
+```php
+// config/typescript-translations.php
+'translation_export' => [
+    'minify' => env('APP_ENV') === 'production',
+    'path' => env('APP_ENV') === 'local' 
+        ? 'resources/js/data/translations'
+        : 'public/js/translations',  // CDN in production
+],
 ```
 
-This package generates types that match this structure exactly. You can then:
+## Performance
 
-1. Import entire modules when you need everything
-2. Pick specific parts for optimized page loads
-3. Compose custom types for specific components
-4. Mix translations from different modules freely
+### Bundle Size Comparison
+
+| Approach | Initial Load | Locale Switch | Tree-Shaking |
+|----------|-------------|---------------|--------------|
+| Backend (Inertia) | ~5KB per page | Page reload | N/A |
+| Frontend (All) | ~200KB | Instant | ❌ |
+| Frontend (Modular) | ~20KB per module | Instant | ✅ |
+| Frontend (Dynamic) | 0KB | Lazy load | ✅ |
+
+### Optimization Strategies
+
+1. **Development**: Use all translations for convenience
+2. **Production**: Use backend translations + dynamic imports
+3. **Hybrid**: Backend for SSR, frontend for interactive features
+
+### Lazy Loading Example
 
 ```typescript
-// Use everything from vendors
-import type { VendorsI18N } from '@/types/translations';
-
-// Or compose your own type
-type MyComponentTranslations = {
-    vendorActions: VendorsActionsI18N;
-    productCatalog: ProductsCatalogI18N;
-    common: Pick<CommonI18N, 'save' | 'cancel'>;
-}
-```
-
-## Advanced Features
-
-### Per-Language Types
-
-If your languages have different keys:
-
-```php
-'per_language_types' => true,
-```
-
-### Exclude Patterns
-
-Skip certain files:
-
-```php
-'exclude' => [
-    '*/test/*',
-    'temp-*',
-],
-```
-
-### Custom Output Organization
-
-```php
-'organize_output' => [
-    'enabled' => true,
-    'types_folder' => 'types',
-    'translations_folder' => 'translations',
-],
-```
-
-## Testing
-
-```bash
-composer test
+// Only load when modal opens
+const loadVendorFormTranslations = async () => {
+  const { VendorsFormsTranslations } = await import(
+    /* webpackChunkName: "translations-vendors-forms" */
+    '@/data/translations/vendors/forms'
+  );
+  return VendorsFormsTranslations;
+};
 ```
 
 ## License
