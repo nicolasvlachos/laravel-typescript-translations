@@ -37,7 +37,7 @@ class ModuleWriter extends BaseWriter
                 continue;
             }
 
-            $fileName = Str::kebab($sourceName) . '.translations.d.ts';
+            $fileName = $this->toFilenameSafe($sourceName) . '.translations.d.ts';
             $filePath = $translationsDir . '/' . $fileName;
             
             $content = $this->generateModuleContent($sourceName, $structure, $locales);
@@ -167,7 +167,7 @@ class ModuleWriter extends BaseWriter
             if (empty($structure)) {
                 continue;
             }
-            $moduleFile = './translations/' . Str::kebab($sourceName) . '.translations';
+            $moduleFile = './translations/' . $this->toFilenameSafe($sourceName) . '.translations';
             $ts .= "export * from '{$moduleFile}';\n";
         }
 

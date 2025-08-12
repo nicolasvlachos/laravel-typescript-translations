@@ -72,8 +72,14 @@ abstract class BaseWriter implements WriterInterface
             File::makeDirectory($directory, 0755, true);
         }
 
+        // Clear PHP's file stat cache for this specific file
+        clearstatcache(true, $path);
+        
         File::put($path, $content);
         $this->writtenPaths[] = $path;
+        
+        // Touch the file to ensure timestamp is updated
+        touch($path);
     }
 
     /**
@@ -109,6 +115,18 @@ abstract class BaseWriter implements WriterInterface
     protected function getSafeKey(string $key): string
     {
         return $this->generator->getSafeKey($key);
+    }
+
+    /**
+     * Generate a filename-safe version of a name.
+     *
+     * @param string $name
+     * @return string
+     */
+    protected function toFilenameSafe(string $name): string
+    {
+        // Convert to lowercase first, then kebab case
+        return Str::kebab(strtolower($name));
     }
 
     /**

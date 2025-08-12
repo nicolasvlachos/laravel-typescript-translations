@@ -39,7 +39,7 @@ class GranularWriter extends BaseWriter
                 continue;
             }
 
-            $moduleDir = $translationsDir . '/' . Str::kebab($sourceName);
+            $moduleDir = $translationsDir . '/' . $this->toFilenameSafe($sourceName);
             $moduleInterfaces = [];
 
             foreach ($structure as $file => $translations) {
@@ -50,7 +50,7 @@ class GranularWriter extends BaseWriter
                     $fileName = 'json.translations.d.ts';
                     $property = 'json';
                 } else {
-                    $fileName = Str::kebab($file) . '.translations.d.ts';
+                    $fileName = $this->toFilenameSafe($file) . '.translations.d.ts';
                     $property = preg_replace('/[^a-zA-Z0-9_]/', '_', $file);
                 }
 
@@ -159,7 +159,7 @@ class GranularWriter extends BaseWriter
 
         // Import all module interfaces
         foreach ($allInterfaces as $sourceName => $interfaces) {
-            $moduleDir = Str::kebab($sourceName);
+            $moduleDir = $this->toFilenameSafe($sourceName);
             $ts .= "import type { {$sourceName}{$suffix} } from './{$moduleDir}';\n";
         }
 
@@ -180,7 +180,7 @@ class GranularWriter extends BaseWriter
 
         // Export all modules
         foreach ($allInterfaces as $sourceName => $interfaces) {
-            $moduleDir = Str::kebab($sourceName);
+            $moduleDir = $this->toFilenameSafe($sourceName);
             $ts .= "export * from './{$moduleDir}';\n";
         }
 

@@ -43,6 +43,9 @@ class ScannerManager
      */
     public function scan(array $paths, array $selectedLocales = []): TranslationData
     {
+        // Clear file stat cache to ensure we read fresh file contents
+        clearstatcache();
+        
         $data = new TranslationData();
 
         foreach ($paths as $source => $sourcePaths) {

@@ -35,6 +35,14 @@ class PhpScanner implements ScannerInterface
         }
 
         try {
+            // Clear opcache for this specific file to ensure fresh content
+            if (function_exists('opcache_invalidate')) {
+                opcache_invalidate($filePath, true);
+            }
+            
+            // Clear file stat cache for this file
+            clearstatcache(true, $filePath);
+            
             $content = require $filePath;
             return is_array($content) ? $content : [];
         } catch (\Exception $e) {
